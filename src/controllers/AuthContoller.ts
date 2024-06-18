@@ -2,10 +2,10 @@ import { Router } from "express";
 import { getRepository } from "typeorm";
 import { User } from "../model/User";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
+import jwt, { JwtPayload } from "jsonwebtoken";
 import { Token } from "../model/Token";
 // import { Token } from "../model/Token";
-import {verifyToken} from "../middleware/TokenUtil"
+import { verifyToken } from "../middleware/TokenUtil";
 
 const authRouter = Router();
 
@@ -21,8 +21,8 @@ authRouter.post("/register", async (req, res) => {
   console.log(existingUser);
   if (existingUser) {
     return res.status(400).send({
-        status: false,
-        message:"User already exists"
+      status: false,
+      message: "User already exists",
     });
   }
 
@@ -33,8 +33,8 @@ authRouter.post("/register", async (req, res) => {
   await userRepository.save(user);
 
   res.status(201).send({
-    status:true,
-    message:"User registered successfully"
+    status: true,
+    message: "User registered successfully",
   });
 });
 
@@ -53,8 +53,8 @@ authRouter.post("/login", async (req, res) => {
 
   if (!user) {
     return res.status(400).send({
-        status:false,
-        message:"Invalid email or password"
+      status: false,
+      message: "Invalid email or password",
     });
   }
 
@@ -62,8 +62,8 @@ authRouter.post("/login", async (req, res) => {
 
   if (!validPassword) {
     return res.status(400).send({
-        status:false,
-        message:"Invalid email or password"
+      status: false,
+      message: "Invalid email or password",
     });
   }
 
@@ -78,11 +78,53 @@ authRouter.post("/login", async (req, res) => {
 
   await tokenRepository.save(userToken);
 
+  res.json({
+    status: true,
+    accessToken: token,
+    data: {
+      name: user.name,
+      email: user.email,
+    },
+  });
+});
 
-  res.json({ status: true, accessToken: token, data: {
-    name:user.name,
-    email:user.email
-  } });
+authRouter.put("/update", verifyToken, async (req, res) => {
+  const userToken = req.header("Authorization")?.replace("Bearer ", "");
+
+  const { email, password } = req.body;
+
+  const decoded = jwt.verify(`${userToken}`, "your_jwt_secret");
+  const userId = Number((decoded as JwtPayload).userId);
+
+  if (!email && !password) {
+    return res.status(400).send({
+      status: false,
+      message: "No data to update",
+    });
+  }
+
+  const userRepository = getRepository(User);
+  const user = await userRepository.findOne({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    return res.status(404).send({
+      status: false,
+      message: "User not found",
+    });
+  }
+
+  if (email) {
+    user.email = email;
+  }
+
+  if (password) {
+    user.password = await bcrypt.hash(password, 10);
+  }
+
+  await userRepository.save(user);
+  res.send({ status: true, message: "User updated successfully" });
 });
 
 export { authRouter };

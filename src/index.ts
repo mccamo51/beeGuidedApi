@@ -10,10 +10,6 @@ import { verifyToken } from './middleware/TokenUtil';
 
 
 
-
-
-
-
 const app = express();
 const port = 4000;
 
@@ -22,8 +18,6 @@ app.use('/auth', authRouter);
 
 app.use("/category", categoryRouter)
 app.use("/settings",verifyToken, settingRouter)
-
-
 
 app.get('/users', async (req, res) => {
   try {
